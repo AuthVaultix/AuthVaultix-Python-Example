@@ -22,11 +22,11 @@ def clear():
 print("Connecting...")
 
 AuthVaultixapp = api(
-    name="typescript-app",
-    ownerid="7X9F3V6pmF",
-    secret="a3084ef7c1e277df3af847b929bd6e4b77edf35a5aececd7e0ff18266203b2c7",
+    name="",
+    ownerid="",
+    secret="",
     version="1.0",
-    api_url="https://worker.authvaultix.com/api/1.1/"
+    api_url=""
 )
 
 
