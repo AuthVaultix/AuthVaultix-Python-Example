@@ -5,7 +5,7 @@ import time
 import platform
 import os
 from time import sleep
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 def clear():
     if platform.system() == 'Windows':
@@ -19,14 +19,14 @@ def clear():
         os.system('echo -n -e "\033]0;Auth System Example\007"')
 
 
-print("Initializing...")
+print("Connecting...")
 
 AuthVaultixapp = api(
-    name="test_app",
-    ownerid="5d36476ca4",
-    secret="7b9729387300a04a9a128f2dbe8a9b24659047ab7933ab312dfdca3d5397fb59",
+    name="typescript-app",
+    ownerid="7X9F3V6pmF",
+    secret="a3084ef7c1e277df3af847b929bd6e4b77edf35a5aececd7e0ff18266203b2c7",
     version="1.0",
-    api_url="https://authvaultix.com/api/1.2/"  
+    api_url="https://worker.authvaultix.com/api/1.1/"
 )
 
 
@@ -42,17 +42,17 @@ def answer():
         if ans == "1":
             user = input('Provide username: ')
             password = input('Provide password: ')
-            AuthVaultixapp.login(user, password)
+            return AuthVaultixapp.login(user, password)
 
         elif ans == "2":
             user = input('Provide username: ')
             password = input('Provide password: ')
             license = input('Provide License: ')
-            AuthVaultixapp.register(user, password, license)
+            return AuthVaultixapp.register(user, password, license)
 
         elif ans == "3":
             license = input('Enter your license: ')
-            AuthVaultixapp.license(license)
+            return AuthVaultixapp.license(license)
 
         else:
             print("\nInvalid option")
@@ -67,34 +67,67 @@ def answer():
 answer()
 
 # ===============================
-# Display User Data
+# Display User Data (SAFE VERSION)
 # ===============================
 
+from datetime import timezone
+
+data = AuthVaultixapp.user_data
+
+# 🔒 Check if data exists
+if not data:
+    print("\nNo user data available - login or register first.")
+    sleep(2)
+    os._exit(1)
+
 print("\nUser data:")
-print("Username: " + str(AuthVaultixapp.user_data["username"]))
-print("IP address: " + str(AuthVaultixapp.user_data["ip"]))
-print("Hardware-Id: " + str(AuthVaultixapp.user_data["hwid"]))
 
-subs = AuthVaultixapp.user_data["subscriptions"]
+print("Username:", data.get("username", "N/A"))
+print("IP address:", data.get("ip", "N/A"))
+print("Hardware-Id:", data.get("hwid", "N/A"))
 
-for i in range(len(subs)):
-    sub = subs[i]["subscription"]
-    expiry = datetime.fromtimestamp(int(subs[i]["expiry"]), UTC).strftime('%Y-%m-%d %H:%M:%S')
-    timeleft = subs[i].get("timeleft", "N/A")
-    print(f"[{i + 1} / {len(subs)}] | Subscription: {sub} - Expiry: {expiry} - Timeleft: {timeleft}")
+# 🔒 Safe subscriptions handling
+subs = data.get("subscriptions", [])
 
-print("Created at: " + datetime.fromtimestamp(int(AuthVaultixapp.user_data["createdate"]), UTC).strftime('%Y-%m-%d %H:%M:%S'))
+if subs:
+    for i, sub_data in enumerate(subs):
+        sub = sub_data.get("subscription", "N/A")
 
-if AuthVaultixapp.user_data.get("lastlogin"):
-    print("Last login at: " + datetime.fromtimestamp(int(AuthVaultixapp.user_data["lastlogin"]), UTC).strftime('%Y-%m-%d %H:%M:%S'))
+        expiry_raw = sub_data.get("expiry")
+        if expiry_raw:
+            expiry = datetime.fromtimestamp(int(expiry_raw), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            expiry = "N/A"
+
+        timeleft = sub_data.get("timeleft", "N/A")
+
+        print(f"[{i + 1} / {len(subs)}] | Subscription: {sub} - Expiry: {expiry} - Timeleft: {timeleft}")
+else:
+    print("No subscriptions found")
+
+# 🔒 Safe created date
+created_raw = data.get("createdate")
+if created_raw:
+    created = datetime.fromtimestamp(int(created_raw), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+else:
+    created = "N/A"
+
+print("Created at:", created)
+
+# 🔒 Last login
+last_login = data.get("lastlogin")
+if last_login:
+    last_login_fmt = datetime.fromtimestamp(int(last_login), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    print("Last login at:", last_login_fmt)
 else:
     print("Last login at: First login")
 
-# Expires field may not exist in response, so safer to check
-if "expires" in AuthVaultixapp.user_data:
-    print("Expires at: " + datetime.fromtimestamp(int(AuthVaultixapp.user_data["expires"]), UTC).strftime('%Y-%m-%d %H:%M:%S'))
+# 🔒 Optional expires
+expires_raw = data.get("expires")
+if expires_raw:
+    expires = datetime.fromtimestamp(int(expires_raw), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    print("Expires at:", expires)
 
 print("\nExiting in three seconds..")
 sleep(3)
 os._exit(1)
-

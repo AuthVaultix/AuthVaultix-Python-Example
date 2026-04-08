@@ -7,6 +7,14 @@ import binascii
 
 class api:
     def __init__(self, name, ownerid, secret, version, api_url):
+
+        if not ownerid or len(ownerid) < 10:
+            raise ValueError("Invalid ownerid")
+        if not secret or len(secret) < 64:
+            raise ValueError("Invalid secret")
+        if not api_url.startswith("http"):
+            raise ValueError("Invalid API URL (must start with http/https)")
+
         self.name = name
         self.ownerid = ownerid
         self.secret = secret
@@ -16,6 +24,7 @@ class api:
         self.initialized = False
         self.user_data = {}
         self.app_data = {}
+
         self.init()
 
     def init(self):
@@ -45,7 +54,7 @@ class api:
         self.sessionid = data["sessionid"]
         self.app_data = data["appinfo"]
         self.initialized = True
-        print("Initialization successful! SessionID:", self.sessionid)
+        print("Initialization successful!")
 
     def login(self, username, password):
         self._check_init()
@@ -60,11 +69,14 @@ class api:
 
         response = self.__do_request(post_data)
         data = json.loads(response)
+
         if data.get("success"):
             self.user_data = data["info"]
             print("Login successful!")
+            return True   # ✅ ADD
         else:
             print("Login failed:", data.get("message"))
+            return False  # ✅ ADD
 
     def register(self, username, password, license_key, hwid=None):
         self._check_init()
