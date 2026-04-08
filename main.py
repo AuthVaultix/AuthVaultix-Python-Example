@@ -26,7 +26,7 @@ AuthVaultixapp = api(
     ownerid="",
     secret="",
     version="1.0",
-    api_url=""
+    api_url="https://authvaultix.com/api/1.0/"
 )
 
 
