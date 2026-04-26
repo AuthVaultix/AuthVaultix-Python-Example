@@ -4,6 +4,9 @@ import time
 import requests
 import platform
 import binascii
+import subprocess
+import hashlib
+
 
 class api:
     def __init__(self, name, ownerid, secret, version, api_url):
@@ -41,7 +44,7 @@ class api:
             "enckey": enckey
         }
 
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         if response == "Authvaultix_Invalid":
             print("Invalid application or ownerid")
             return
@@ -56,27 +59,32 @@ class api:
         self.initialized = True
         print("Initialization successful!")
 
-    def login(self, username, password):
+    def login(self, username, password, hwid=None):
         self._check_init()
+
+        if not hwid:
+            hwid = self.get_hwid()   
+
         post_data = {
             "type": "login",
             "username": username,
             "pass": password,
+            "hwid": hwid,  
             "sessionid": self.sessionid,
             "name": self.name,
             "ownerid": self.ownerid
         }
 
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
 
         if data.get("success"):
             self.user_data = data["info"]
             print("Login successful!")
-            return True   # ✅ ADD
+            return True
         else:
             print("Login failed:", data.get("message"))
-            return False  # ✅ ADD
+            return False
 
     def register(self, username, password, license_key, hwid=None):
         self._check_init()
@@ -94,7 +102,7 @@ class api:
             "ownerid": self.ownerid
         }
 
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
         if data.get("success"):
             self.user_data = data["info"]
@@ -116,7 +124,7 @@ class api:
             "hwid": hwid
         }
 
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
         if data.get("success"):
             self.user_data = data["info"]
@@ -133,7 +141,7 @@ class api:
             "name": self.name,
             "ownerid": self.ownerid
         }
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
         if data.get("success"):
             return data.get("message")
@@ -151,7 +159,7 @@ class api:
             "name": self.name,
             "ownerid": self.ownerid
         }
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
         if data.get("success"):
             return True
@@ -167,7 +175,7 @@ class api:
             "name": self.name,
             "ownerid": self.ownerid
         }
-        response = self.__do_request(post_data)
+        response = self.do_request(post_data)
         data = json.loads(response)
         if data.get("success"):
             print("Logged out successfully!")
@@ -177,7 +185,7 @@ class api:
             print("Logout failed:", data.get("message"))
 
     # =================== INTERNAL METHODS ===================
-    def __do_request(self, post_data):
+    def do_request(self, post_data):
         try:
             response = requests.post(self.api_url, data=post_data, timeout=10)
             return response.text
@@ -190,21 +198,58 @@ class api:
             raise Exception("Client not initialized. Call init() first.")
 
     @staticmethod
+    def hwid_to_sid(hwid):
+        try:
+            parts = [
+                hwid[0:8],
+                hwid[8:16],
+                hwid[16:24],
+                hwid[24:32]
+            ]
+            nums = [str(int(p, 16)) for p in parts]
+            return f"S-1-5-21-{nums[0]}-{nums[1]}-{nums[2]}-{nums[3]}"
+        except:
+            return "INVALID_SID"
+
+    @staticmethod
     def get_hwid():
         system = platform.system()
         try:
+            data = ""
+
             if system == "Windows":
-                import win32security
-                user = os.getlogin()
-                sid = win32security.LookupAccountName(None, user)[0]
-                return win32security.ConvertSidToStringSid(sid)
+                cpu = subprocess.check_output("wmic cpu get ProcessorId", shell=True).decode().split("\n")[1].strip()
+                disk = subprocess.check_output("wmic diskdrive get SerialNumber", shell=True).decode().split("\n")[1].strip()
+                board = subprocess.check_output("wmic baseboard get SerialNumber", shell=True).decode().split("\n")[1].strip()
+                guid = subprocess.check_output(
+                    'reg query HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid',
+                    shell=True
+                ).decode().split()[-1]
+
+                data = cpu + disk + board + guid
+
             elif system == "Linux":
                 with open("/etc/machine-id") as f:
-                    return f.read().strip()
+                    machine = f.read().strip()
+
+                cpu = subprocess.getoutput("cat /proc/cpuinfo | grep Serial | awk '{print $3}'")
+                disk = subprocess.getoutput("lsblk -o SERIAL | head -n 2 | tail -n 1")
+
+                data = machine + cpu + disk
+
             elif system == "Darwin":
-                import subprocess
-                output = subprocess.check_output("ioreg -l | grep IOPlatformSerialNumber", shell=True)
-                serial = output.decode().split('=')[1].replace(' ', '').strip('"')
-                return serial
+                serial = subprocess.check_output(
+                    "system_profiler SPHardwareDataType | grep 'Serial Number'",
+                    shell=True
+                ).decode().split(":")[1].strip()
+
+                data = serial
+
+            # 🔒 Step 1: Hash
+            hwid_hash = hashlib.sha256(data.encode()).hexdigest()
+
+            # 🔒 Step 2: Convert to SID format
+            return api.hwid_to_sid(hwid_hash)
+
         except Exception:
             return "UNKNOWN_HWID"
