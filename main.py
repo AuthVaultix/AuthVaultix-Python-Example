@@ -1,14 +1,12 @@
 from authvaultix import api
 import sys
-import time
 import platform
 import os
 from time import sleep
-from datetime import datetime, timezone
 
 def clear():
     if platform.system() == 'Windows':
-        os.system('cls & title Auth System Example')
+        os.system('Authvaultix Python-Example')
     else:
         os.system('clear')
 
@@ -65,72 +63,29 @@ def auth_menu():
 auth_menu()
 
 # ===============================
-# Display User Data
+# CLEAN USER DATA DISPLAY
 # ===============================
 
-data = AuthVaultixapp.user_data
+info = AuthVaultixapp.get_user_info()
 
-if not data:
+if not info:
     exit_app("\nNo user data available - login first.")
 
 print("\n=== User Data ===")
-
-print("Username:", data.get("username", "N/A"))
-print("IP Address:", data.get("ip", "N/A"))
-print("HWID:", data.get("hwid", "N/A"))
+print("Username:", info["username"])
+print("IP:", info["ip"])
+print("HWID:", info["hwid"])
+print("Created:", info["created"])
+print("Last Login:", info["last_login"])
 
 # Subscriptions
-subs = data.get("subscriptions", [])
-
-from datetime import datetime
-
-def to_local(ts):
-    return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %I:%M:%S %p')
-
-def format_timeleft(seconds):
-    seconds = int(seconds)
-    days = seconds // 86400
-    hours = (seconds % 86400) // 3600
-    minutes = (seconds % 3600) // 60
-    return f"{days}d {hours}h {minutes}m"
-
-# =====================
+subs = info.get("subscriptions", [])
 
 if subs:
     print("\nSubscriptions:")
-    for i, sub_data in enumerate(subs):
-        sub = sub_data.get("subscription", "N/A")
-
-        expiry_raw = sub_data.get("expiry")
-        expiry = to_local(expiry_raw) if expiry_raw else "N/A"
-
-        timeleft_raw = sub_data.get("timeleft", 0)
-        timeleft = format_timeleft(timeleft_raw)
-
-        print(f"[{i+1}] {sub} | Expiry: {expiry} | Timeleft: {timeleft}")
+    for i, sub in enumerate(subs):
+        print(f"[{i+1}] {sub['name']} | Expiry: {sub['expiry']} | Timeleft: {sub['timeleft']}")
 else:
     print("No subscriptions found")
-
-# Created Date
-created_raw = data.get("createdate")
-created = (
-    datetime.fromtimestamp(int(created_raw), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-    if created_raw else "N/A"
-)
-print("Created at:", created)
-
-# Last Login
-last_login = data.get("lastlogin")
-if last_login:
-    last_login_fmt = datetime.fromtimestamp(int(last_login), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-    print("Last login:", last_login_fmt)
-else:
-    print("Last login: First time")
-
-# Optional Expiry
-expires_raw = data.get("expires")
-if expires_raw:
-    expires = datetime.fromtimestamp(int(expires_raw), timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-    print("Expires at:", expires)
 
 exit_app("\nExiting in 3 seconds...", 3)

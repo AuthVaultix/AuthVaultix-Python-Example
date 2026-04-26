@@ -1,6 +1,6 @@
+from datetime import datetime
 import os
 import json
-import time
 import requests
 import platform
 import binascii
@@ -16,7 +16,7 @@ class api:
         if not secret or len(secret) < 64:
             raise ValueError("Invalid secret")
         if not api_url.startswith("http"):
-            raise ValueError("Invalid API URL (must start with http/https)")
+            raise ValueError("Invalid API URL")
 
         self.name = name
         self.ownerid = ownerid
@@ -30,12 +30,58 @@ class api:
 
         self.init()
 
+    # ================= USER INFO =================
+    def get_user_info(self):
+        if not self.user_data:
+            return None
+
+        data = self.user_data
+
+        result = {
+            "username": data.get("username"),
+            "ip": data.get("ip"),
+            "hwid": data.get("hwid"),
+            "created": self._to_local(data.get("createdate")),
+            "last_login": self._to_local(data.get("lastlogin")),
+            "expires": self._to_local(data.get("expires")),
+            "subscriptions": []
+        }
+
+        subs = data.get("subscriptions", [])
+
+        for sub in subs:
+            result["subscriptions"].append({
+                "name": sub.get("subscription"),
+                "expiry": self._to_local(sub.get("expiry")),
+                "timeleft": self._format_timeleft(sub.get("timeleft"))
+            })
+
+        return result
+
+    def _to_local(self, ts):
+        if not ts:
+            return "N/A"
+        return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %I:%M:%S %p')
+
+    def _format_timeleft(self, seconds):
+        if not seconds:
+            return "0d 0h 0m"
+
+        seconds = int(seconds)
+        days = seconds // 86400
+        hours = (seconds % 86400) // 3600
+        minutes = (seconds % 3600) // 60
+
+        return f"{days}d {hours}h {minutes}m"
+
+    # ================= INIT =================
     def init(self):
         if self.sessionid:
             print("Already initialized!")
             return
 
         enckey = binascii.hexlify(os.urandom(16)).decode()
+
         post_data = {
             "type": "init",
             "name": self.name,
@@ -45,11 +91,13 @@ class api:
         }
 
         response = self.do_request(post_data)
+
         if response == "Authvaultix_Invalid":
-            print("Invalid application or ownerid")
+            print("Invalid app")
             return
 
         data = json.loads(response)
+
         if not data.get("success"):
             print("Init failed:", data.get("message"))
             return
@@ -57,26 +105,27 @@ class api:
         self.sessionid = data["sessionid"]
         self.app_data = data["appinfo"]
         self.initialized = True
+
         print("Initialization successful!")
 
+    # ================= LOGIN =================
     def login(self, username, password, hwid=None):
         self._check_init()
 
         if not hwid:
-            hwid = self.get_hwid()   
+            hwid = self.get_hwid()
 
         post_data = {
             "type": "login",
             "username": username,
             "pass": password,
-            "hwid": hwid,  
+            "hwid": hwid,
             "sessionid": self.sessionid,
             "name": self.name,
             "ownerid": self.ownerid
         }
 
-        response = self.do_request(post_data)
-        data = json.loads(response)
+        data = json.loads(self.do_request(post_data))
 
         if data.get("success"):
             self.user_data = data["info"]
