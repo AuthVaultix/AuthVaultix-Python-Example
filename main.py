@@ -1,4 +1,4 @@
-from authvaultix import api
+from authvaultix import AuthVaultixClient
 import sys
 import platform
 import os
@@ -18,13 +18,14 @@ def exit_app(msg="", delay=2):
 
 print("Connecting...")
 
-AuthVaultixapp = api(
-    name="",
-    ownerid="",
-    secret="",
-    version="1.0",
+AuthVaultixapp = AuthVaultixClient(
+    "", # App name 
+    "", # Account ID
+    "", # Application secret
+    "1.0", # Application version
     api_url="https://authvaultix.com/api/1.0/"
 )
+
 
 def auth_menu():
     while True:
@@ -33,6 +34,8 @@ def auth_menu():
 1. Login
 2. Register
 3. License Key Only
+4. Upgrade
+5. Forgot Password
             """)
             ans = input("Select Option: ").strip()
 
@@ -49,7 +52,19 @@ def auth_menu():
 
             elif ans == "3":
                 license = input('Enter License: ')
-                return AuthVaultixapp.license(license)
+                return AuthVaultixapp.license_login(license)
+
+            elif ans == "4":
+                user = input('Username: ')
+                license = input('Upgrade License: ')
+                AuthVaultixapp.upgrade(user, license)
+                exit_app("Please restart the program and login.", 2)
+
+            elif ans == "5":
+                user = input('Username: ')
+                email = input('Email: ')
+                AuthVaultixapp.forgot_password(user, email)
+                exit_app("Check your email for the password reset link.", 2)
 
             else:
                 print("Invalid option\n")
