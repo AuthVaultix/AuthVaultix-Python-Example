@@ -86,12 +86,12 @@ Download `authvaultix.py` and place it in your project directory.
 ## ⚡ Quick Start
 
 ```python
-from authvaultix import api
+from authvaultix import AuthVaultixClient
 
 # Initialize the client
-client = api(
-    name="MyApp",
-    ownerid="your_owner_id_here",
+client = AuthVaultixClient(
+    app_name="MyApp",
+    owner_id="your_owner_id_here",
     secret="your_secret_key_here",  # Must be 64+ characters
     version="1.0",
     api_url="https://authvaultix.com/api/1.0/"
@@ -113,12 +113,12 @@ if success:
 The included `main.py` demonstrates a complete authentication flow with a console menu:
 
 ```python
-from authvaultix import api
+from authvaultix import AuthVaultixClient
 
-AuthVaultixapp = api(
-    name="",           # Your app name from dashboard
-    ownerid="",        # Your Owner ID from dashboard
-    secret="",         # Your Secret key (64+ chars)
+AuthVaultixapp = AuthVaultixClient(
+    app_name="",           # Your app name from dashboard
+    owner_id="",           # Your Owner ID from dashboard
+    secret="",             # Your Secret key (64+ chars)
     version="1.0",
     api_url="https://authvaultix.com/api/1.0/"
 )
@@ -127,10 +127,10 @@ AuthVaultixapp = api(
 AuthVaultixapp.login("username", "password")
 
 # 2. Register
-AuthVaultixapp.register("username", "password", "LICENSE-KEY-HERE")
+AuthVaultixapp.register("username", "password", "LICENSE-KEY-HERE", "email@example.com")
 
 # 3. License key only
-AuthVaultixapp.license("LICENSE-KEY-HERE")
+AuthVaultixapp.license_login("LICENSE-KEY-HERE")
 
 # Get user info after auth
 info = AuthVaultixapp.get_user_info()
@@ -146,91 +146,100 @@ for sub in info["subscriptions"]:
 
 ## 📚 API Reference
 
-### `api(name, ownerid, secret, version, api_url)`
+### `AuthVaultixClient(app_name, owner_id, secret, version, api_url)`
 
 Initializes and connects your app to the AuthVaultix server.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `name` | `str` | Your application name |
-| `ownerid` | `str` | Owner ID from dashboard (min 10 chars) |
+| `app_name` | `str` | Your application name |
+| `owner_id` | `str` | Owner ID from dashboard (min 10 chars) |
 | `secret` | `str` | Secret key from dashboard (min 64 chars) |
 | `version` | `str` | Your app version (e.g. `"1.0"`) |
 | `api_url` | `str` | API endpoint URL |
 
 ---
 
-### `login(username, password, hwid=None)`
+### Authentication Methods
 
-Authenticates a user with username and password.
+#### `login(username, password)`
+Authenticates a user with username and password. Returns `True` on success.
 
-```python
-success = client.login("john_doe", "securepassword123")
-# Returns: True on success, False on failure
-```
+#### `register(username, password, license_key, email="")`
+Registers a new user using a license key and optional email. Returns `True` on success.
 
----
+#### `license_login(license_key)`
+Authenticates a user using a license key only (no username/password). Returns `True` on success.
 
-### `register(username, password, license_key, hwid=None)`
-
-Registers a new user using a license key.
-
-```python
-client.register("john_doe", "securepassword123", "XXXXX-XXXXX-XXXXX")
-```
-
----
-
-### `license(license_key, hwid=None)`
-
-Authenticates a user using a license key only (no username/password).
-
-```python
-client.license("XXXXX-XXXXX-XXXXX")
-```
-
----
-
-### `get_user_info()`
-
-Returns a dictionary with the authenticated user's information.
-
-```python
-info = client.get_user_info()
-# Returns: dict with username, ip, hwid, created, last_login, expires, subscriptions
-```
-
----
-
-### `var(var_name)`
-
-Fetches a server-side variable by name.
-
-```python
-value = client.var("my_variable_name")
-print(value)
-```
-
----
-
-### `setvar(var_name, var_data)`
-
-Sets a server-side variable for the current user.
-
-```python
-client.setvar("my_variable_name", "some_value")
-# Returns: True on success, False on failure
-```
-
----
-
-### `logout()`
-
+#### `logout()`
 Logs the user out and invalidates the current session.
 
-```python
-client.logout()
-```
+---
+
+### User & Session Management
+
+#### `get_user_info()`
+Returns a dictionary with the authenticated user's information.
+
+#### `check()`
+Validates if the current session is still active. Returns `True` if valid.
+
+#### `upgrade(username, license_key)`
+Upgrades a user's account/subscription with a new license key.
+
+#### `forgot_password(username, email)`
+Triggers a password reset email for the given user.
+
+#### `change_username(new_username)`
+Changes the authenticated user's username.
+
+---
+
+### Variables & Data
+
+#### `get_var(var_name)`
+Fetches a user-specific server-side variable.
+
+#### `set_var(var_name, value)`
+Sets a user-specific server-side variable for the current user.
+
+#### `get_global_var(var_key)`
+Fetches a global server-side variable by its ID.
+
+#### `download(file_id)`
+Downloads a secure file from the server. Returns the file's binary content.
+
+---
+
+### Security & Logging
+
+#### `log(message)`
+Sends a log message to the AuthVaultix dashboard.
+
+#### `fetch_online()`
+Retrieves a list of currently online clients.
+
+#### `ban(reason="")`
+Bans the currently authenticated user with an optional reason.
+
+#### `check_blacklist()`
+Checks if the current machine's HWID is blacklisted on the server. Returns `True` if blacklisted.
+
+#### `fetch_stats()`
+Fetches application statistics (users, active, etc.) into `app_info`.
+
+---
+
+### Communication & Webhooks
+
+#### `chat_send(message, channel)`
+Sends a message to a specific chat channel.
+
+#### `chat_fetch(channel)`
+Retrieves chat history for a specific channel.
+
+#### `webhook(web_id, param, body="", conttype="")`
+Triggers a custom webhook on the AuthVaultix server.
 
 ---
 
@@ -249,9 +258,9 @@ The raw hardware data is hashed with **SHA-256** and converted to a **Windows SI
 You can also get the HWID manually:
 
 ```python
-from authvaultix import api
+from authvaultix import HardwareIdentifier
 
-hwid = api.get_hwid()
+hwid = HardwareIdentifier.fetch()
 print("Your HWID:", hwid)
 ```
 
