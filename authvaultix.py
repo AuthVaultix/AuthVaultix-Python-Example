@@ -151,6 +151,12 @@ class AuthVaultixCore:
             .with_value("username", username) \
             .with_value("pass", password) \
             .with_value("hwid", HardwareIdentifier.fetch()) \
+            .with_value("os", SystemInfoCollector.get_os_version()) \
+            .with_value("platform", SystemInfoCollector.get_platform()) \
+            .with_value("device", SystemInfoCollector.get_device_type()) \
+            .with_value("architecture", SystemInfoCollector.get_architecture()) \
+            .with_value("cpu_cores", SystemInfoCollector.get_cpu_cores()) \
+            .with_value("ram", SystemInfoCollector.get_ram_gb()) \
             .compile()
 
         resp = NetworkAgent.post(self._api_url, payload)
@@ -610,9 +616,9 @@ class HardwareIdentifier:
         try:
             data = ""
             if system == "Windows":
-                cpu = subprocess.check_output("wmic cpu get ProcessorId", shell=True).decode().split("\n")[1].strip()
-                disk = subprocess.check_output("wmic diskdrive get SerialNumber", shell=True).decode().split("\n")[1].strip()
-                board = subprocess.check_output("wmic baseboard get SerialNumber", shell=True).decode().split("\n")[1].strip()
+                cpu = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_Processor).ProcessorId"', shell=True).decode().strip()
+                disk = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_DiskDrive).SerialNumber"', shell=True).decode().strip()
+                board = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_BaseBoard).SerialNumber"', shell=True).decode().strip()
                 guid = subprocess.check_output(
                     'reg query HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography /v MachineGuid',
                     shell=True
@@ -642,3 +648,57 @@ class HardwareIdentifier:
 
         except Exception:
             return "UNKNOWN_HWID"
+
+
+class SystemInfoCollector:
+    @staticmethod
+    def get_os_version():
+        try:
+            if platform.system() == "Windows":
+                caption = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_OperatingSystem).Caption"', shell=True).decode().strip()
+                if caption.startsWith("Microsoft "):
+                    caption = caption[len("Microsoft "):]
+                version = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_OperatingSystem).Version"', shell=True).decode().strip()
+                return f"{caption} ({version})"
+        except Exception:
+            pass
+        return f"{platform.system()} ({platform.version()})"
+
+    @staticmethod
+    def get_platform():
+        return "native"
+
+    @staticmethod
+    def get_device_type():
+        return "Desktop"
+
+    @staticmethod
+    def get_architecture():
+        try:
+            return os.environ.get("PROCESSOR_ARCHITECTURE", "X64").upper()
+        except Exception:
+            return "X64"
+
+    @staticmethod
+    def get_cpu_cores():
+        try:
+            if platform.system() == "Windows":
+                cores = subprocess.check_output('powershell -Command "(Get-CimInstance Win32_Processor).NumberOfCores"', shell=True).decode().strip()
+                threads = os.environ.get("NUMBER_OF_PROCESSORS", "2")
+                if cores:
+                    return f"{cores} Cores / {threads} Threads"
+        except Exception:
+            pass
+        # Fallback
+        import multiprocessing
+        threads = multiprocessing.cpu_count()
+        return f"{threads} Cores / {threads} Threads"
+
+    @staticmethod
+    def get_ram_gb():
+        try:
+            if platform.system() == "Windows":
+                return subprocess.check_output('powershell -Command "[Math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)"', shell=True).decode().strip()
+        except Exception:
+            pass
+        return "0"
