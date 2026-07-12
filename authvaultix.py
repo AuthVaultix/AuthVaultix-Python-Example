@@ -151,6 +151,7 @@ class AuthVaultixCore:
             .with_value("username", username) \
             .with_value("pass", password) \
             .with_value("hwid", HardwareIdentifier.fetch()) \
+            .with_value("version", self._version) \
             .with_value("os", SystemInfoCollector.get_os_version()) \
             .with_value("platform", SystemInfoCollector.get_platform()) \
             .with_value("device", SystemInfoCollector.get_device_type()) \
@@ -187,6 +188,13 @@ class AuthVaultixCore:
             .with_value("key", license_key) \
             .with_value("email", email) \
             .with_value("hwid", HardwareIdentifier.fetch()) \
+            .with_value("version", self._version) \
+            .with_value("os", SystemInfoCollector.get_os_version()) \
+            .with_value("platform", SystemInfoCollector.get_platform()) \
+            .with_value("device", SystemInfoCollector.get_device_type()) \
+            .with_value("architecture", SystemInfoCollector.get_architecture()) \
+            .with_value("cpu_cores", SystemInfoCollector.get_cpu_cores()) \
+            .with_value("ram", SystemInfoCollector.get_ram_gb()) \
             .compile()
 
         resp = NetworkAgent.post(self._api_url, payload)
@@ -213,6 +221,13 @@ class AuthVaultixCore:
             .with_context(self._app_name, self._owner_id, self.session_id) \
             .with_value("key", license_key) \
             .with_value("hwid", HardwareIdentifier.fetch()) \
+            .with_value("version", self._version) \
+            .with_value("os", SystemInfoCollector.get_os_version()) \
+            .with_value("platform", SystemInfoCollector.get_platform()) \
+            .with_value("device", SystemInfoCollector.get_device_type()) \
+            .with_value("architecture", SystemInfoCollector.get_architecture()) \
+            .with_value("cpu_cores", SystemInfoCollector.get_cpu_cores()) \
+            .with_value("ram", SystemInfoCollector.get_ram_gb()) \
             .compile()
 
         resp = NetworkAgent.post(self._api_url, payload)
